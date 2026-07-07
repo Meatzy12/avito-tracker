@@ -420,14 +420,18 @@ window.addEventListener('error', function(e) {
     e.preventDefault();
     const form = e.target;
     const title = form.title.value.trim();
-    const published = form.published.value;
-    const duration = parseInt(form.duration.value, 10) || DEFAULT_DURATION;
+    const published = new Date().toISOString().slice(0,10);
+    const remaining = parseInt(form.remaining.value, 10);
     const errEl = form.querySelector('.err');
 
-    if (!title || !published) {
-      errEl.textContent = 'Заполните название и дату публикации';
+    if (!title || isNaN(remaining) || remaining < 0) {
+      errEl.textContent = 'Заполните название и сколько дней осталось';
       return;
     }
+
+    // Дата публикации — сегодня, поэтому "срок" сразу равен введённому остатку;
+    // дальше отсчёт идёт сам от неё.
+    const duration = remaining;
 
     const acc = getActiveAccount();
     acc.listings.push({
@@ -513,15 +517,9 @@ window.addEventListener('error', function(e) {
           <label>Название объявления</label>
           <input type="text" name="title" placeholder="Например: К9К 728 контрактный" autocomplete="off">
         </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Дата публикации</label>
-            <input type="date" name="published" value="${new Date().toISOString().slice(0,10)}">
-          </div>
-          <div class="field">
-            <label>Срок (дней)</label>
-            <input type="number" name="duration" value="${DEFAULT_DURATION}" min="1">
-          </div>
+        <div class="field">
+          <label>Сколько дней осталось</label>
+          <input type="number" name="remaining" value="${DEFAULT_DURATION}" min="0">
         </div>
         <div class="err"></div>
         <div class="btn-row">

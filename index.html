@@ -136,7 +136,7 @@
 
   .edit-row {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
     background: var(--panel-2);
     border: 1px solid var(--accent-dim);
@@ -145,8 +145,17 @@
     padding: 10px 14px;
     margin-top: -1px;
   }
+  .edit-col { flex: 1; min-width: 0; }
+  .edit-col label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+  }
   .edit-row .edit-input {
-    flex: 1;
+    width: 100%;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -169,6 +178,7 @@
   }
   .edit-save { background: var(--accent); color: #241c0e; }
   .edit-cancel { background: none; color: var(--muted); border: 1px solid var(--line) !important; }
+
 
   .gauge { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
   .gauge svg { transform: rotate(-90deg); }
@@ -205,6 +215,39 @@
     letter-spacing: 0.3px;
     margin-top: 4px;
   }
+
+  .promo-info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .promo-btn-row {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: none;
+    padding: 0 14px 10px;
+    border-radius: 0 0 10px 10px;
+    margin-top: -10px;
+  }
+  .card:has(+ .promo-btn-row) { border-radius: 10px 10px 0 0; border-bottom: none; }
+
+  .promo-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .promo-edit-row { flex-wrap: wrap; border-radius: 0 0 10px 10px; }
+  .promo-edit-row .edit-col { min-width: 90px; }
+  .promo-remove-btn { color: var(--danger) !important; }
 
   .del-btn {
     background: none;
@@ -297,6 +340,37 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
   }
 
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-card.stat-warn { border-color: var(--warn); }
+  .stat-card.stat-danger { border-color: var(--danger); }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--accent);
+  }
+  .stat-card.stat-warn .stat-value { color: var(--warn); }
+  .stat-card.stat-danger .stat-value { color: var(--danger); }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 3px;
+  }
+
   .list-wrap { padding-bottom: 70px; }
   .err { color: var(--danger); font-size: 12px; margin-top: 6px; }
 </style>
@@ -333,7 +407,8 @@ window.addEventListener('error', function(e) {
     ],
     activeTab: 'acc1',
     formOpen: false,
-    editingId: null
+    editingId: null,
+    promoEditingId: null
   };
 
   const root = document.getElementById('app-root');
@@ -422,6 +497,7 @@ window.addEventListener('error', function(e) {
     const title = form.title.value.trim();
     const published = new Date().toISOString().slice(0,10);
     const remaining = parseInt(form.remaining.value, 10);
+    const spent = parseInt(form.spent.value, 10) || 0;
     const errEl = form.querySelector('.err');
 
     if (!title || isNaN(remaining) || remaining < 0) {
@@ -436,7 +512,7 @@ window.addEventListener('error', function(e) {
     const acc = getActiveAccount();
     acc.listings.push({
       id: 'l' + Date.now(),
-      title, published, duration
+      title, published, duration, spent
     });
     state.formOpen = false;
     await saveState();
@@ -455,19 +531,64 @@ window.addEventListener('error', function(e) {
     render();
   }
 
-  async function updateRemaining(accId, listingId, newValue) {
+  async function updateRemaining(accId, listingId, newValue, newSpent) {
     const acc = state.accounts.find(a => a.id === accId);
     const listing = acc.listings.find(l => l.id === listingId);
     const n = parseInt(newValue, 10);
+    const s = parseInt(newSpent, 10);
     if (isNaN(n) || n < 0) return;
     // Пересчитываем срок так, чтобы с сегодняшнего дня оставалось ровно n дней,
     // и дальше отсчёт продолжится сам как обычно.
     const elapsed = daysBetween(listing.published);
     listing.duration = elapsed + n;
+    if (!isNaN(s) && s >= 0) listing.spent = s;
     state.editingId = null;
     await saveState();
     render();
   }
+
+  function togglePromoEdit(listingId) {
+    state.promoEditingId = state.promoEditingId === listingId ? null : listingId;
+    render();
+  }
+
+  function promoRemainingDays(listing) {
+    if (!listing.promo || !listing.promo.published) return null;
+    const elapsed = daysBetween(listing.promo.published);
+    return listing.promo.duration - elapsed;
+  }
+
+  async function savePromo(accId, listingId, remainingStr, viewsStartStr, viewsNowStr) {
+    const acc = state.accounts.find(a => a.id === accId);
+    const listing = acc.listings.find(l => l.id === listingId);
+    const remaining = parseInt(remainingStr, 10);
+    const viewsStart = parseInt(viewsStartStr, 10);
+    const viewsNow = parseInt(viewsNowStr, 10);
+    if (isNaN(remaining) || remaining < 0) return;
+
+    if (!listing.promo || !listing.promo.published) {
+      // Продвижение включается впервые — старт отсчитываем с сегодня
+      listing.promo = { published: new Date().toISOString().slice(0,10), duration: remaining, viewsStart: isNaN(viewsStart) ? 0 : viewsStart, viewsNow: isNaN(viewsNow) ? 0 : viewsNow };
+    } else {
+      const elapsed = daysBetween(listing.promo.published);
+      listing.promo.duration = elapsed + remaining;
+      if (!isNaN(viewsStart)) listing.promo.viewsStart = viewsStart;
+      if (!isNaN(viewsNow)) listing.promo.viewsNow = viewsNow;
+    }
+    state.promoEditingId = null;
+    await saveState();
+    render();
+  }
+
+  async function removePromo(accId, listingId) {
+    const acc = state.accounts.find(a => a.id === accId);
+    const listing = acc.listings.find(l => l.id === listingId);
+    delete listing.promo;
+    state.promoEditingId = null;
+    await saveState();
+    render();
+  }
+
 
   function render() {
     const acc = getActiveAccount();
@@ -480,17 +601,99 @@ window.addEventListener('error', function(e) {
 
     const sorted = [...acc.listings].sort((a, b) => remainingDays(a) - remainingDays(b));
 
+    const totalCount = acc.listings.length;
+    const totalSpent = acc.listings.reduce((sum, l) => sum + (l.spent || 0), 0);
+    const activeListings = acc.listings.filter(l => remainingDays(l) > 0);
+    const avgRemaining = activeListings.length
+      ? Math.round(activeListings.reduce((sum, l) => sum + remainingDays(l), 0) / activeListings.length)
+      : 0;
+    const expiringSoon = acc.listings.filter(l => { const r = remainingDays(l); return r > 0 && r <= 3; }).length;
+    const expired = acc.listings.filter(l => remainingDays(l) <= 0).length;
+
+    const statsHtml = totalCount ? `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">${totalCount}</div>
+          <div class="stat-label">Объявлений</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${totalSpent.toLocaleString('ru-RU')} ₽</div>
+          <div class="stat-label">Потрачено всего</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${avgRemaining}</div>
+          <div class="stat-label">Ср. дней осталось</div>
+        </div>
+        <div class="stat-card ${expiringSoon > 0 ? 'stat-warn' : ''}">
+          <div class="stat-value">${expiringSoon}</div>
+          <div class="stat-label">Истекает ≤3 дн.</div>
+        </div>
+        ${expired > 0 ? `
+        <div class="stat-card stat-danger">
+          <div class="stat-value">${expired}</div>
+          <div class="stat-label">Истекло</div>
+        </div>` : ''}
+      </div>
+    ` : '';
+
     const listingsHtml = sorted.length ? sorted.map(l => {
       const rem = remainingDays(l);
+      const spent = l.spent || 0;
       const statusText = rem <= 0 ? 'Срок истёк' : (rem === 1 ? '1 день осталось' : `${rem} дней осталось`);
       const statusColor = gaugeColor(rem, l.duration);
       const isEditing = state.editingId === l.id;
       const editRow = isEditing ? `
           <div class="edit-row">
-            <input type="number" min="0" class="edit-input" id="edit-input-${l.id}" value="${rem > 0 ? rem : 0}">
+            <div class="edit-col">
+              <label>Дней осталось</label>
+              <input type="number" min="0" class="edit-input" id="edit-input-${l.id}" value="${rem > 0 ? rem : 0}">
+            </div>
+            <div class="edit-col">
+              <label>Потрачено, ₽</label>
+              <input type="number" min="0" class="edit-input" id="edit-spent-${l.id}" value="${spent}">
+            </div>
             <button class="edit-save" data-save-acc="${acc.id}" data-save-id="${l.id}">✓</button>
             <button class="edit-cancel" data-cancel-id="${l.id}">✕</button>
           </div>` : '';
+
+      // --- Продвижение ---
+      const promo = l.promo || null;
+      const promoRem = promo ? promoRemainingDays(l) : null;
+      const viewsStart = promo ? (promo.viewsStart || 0) : 0;
+      const viewsNow = promo ? (promo.viewsNow || 0) : 0;
+      const viewsGained = promo ? Math.max(0, viewsNow - viewsStart) : 0;
+      const promoElapsed = promo ? Math.max(1, daysBetween(promo.published)) : 1;
+      const viewsPerDay = promo ? (viewsGained / promoElapsed).toFixed(1) : '0';
+      const costPerView = (promo && spent > 0 && viewsGained > 0) ? (spent / viewsGained).toFixed(1) : null;
+      const isPromoEditing = state.promoEditingId === l.id;
+
+      const promoInfo = promo ? `
+        <div class="promo-info">
+          📈 Продвижение: ${promoRem > 0 ? promoRem + ' дн. осталось' : 'истекло'} ·
+          +${viewsGained} просмотров · ${viewsPerDay}/день${costPerView ? ' · ' + costPerView + ' ₽/просмотр' : ''}
+        </div>` : '';
+
+      const promoBtn = `<button class="promo-toggle-btn" data-promo-id="${l.id}">${promo ? '📈 Изменить' : '📈 Добавить продвижение'}</button>`;
+
+      const promoEditRow = isPromoEditing ? `
+          <div class="edit-row promo-edit-row">
+            <div class="edit-col">
+              <label>Дней осталось (продв.)</label>
+              <input type="number" min="0" class="edit-input" id="promo-days-${l.id}" value="${promoRem !== null && promoRem > 0 ? promoRem : (promo ? 0 : 7)}">
+            </div>
+            <div class="edit-col">
+              <label>Просм. на старте</label>
+              <input type="number" min="0" class="edit-input" id="promo-vstart-${l.id}" value="${viewsStart}">
+            </div>
+            <div class="edit-col">
+              <label>Просм. сейчас</label>
+              <input type="number" min="0" class="edit-input" id="promo-vnow-${l.id}" value="${viewsNow}">
+            </div>
+            <button class="edit-save promo-save" data-promo-save-acc="${acc.id}" data-promo-save-id="${l.id}">✓</button>
+            <button class="edit-cancel promo-cancel" data-promo-cancel-id="${l.id}">✕</button>
+            ${promo ? `<button class="edit-cancel promo-remove-btn" data-promo-remove-acc="${acc.id}" data-promo-remove-id="${l.id}">🗑</button>` : ''}
+          </div>` : '';
+
       return `
         <div class="card-wrap">
           <div class="card">
@@ -500,15 +703,19 @@ window.addEventListener('error', function(e) {
             </button>
             <div class="item-body">
               <div class="item-title">${escapeHtml(l.title)}</div>
-              <div class="item-meta">опубл. ${formatDate(l.published)} · срок ${l.duration} дн.</div>
+              <div class="item-meta">опубл. ${formatDate(l.published)} · срок ${l.duration} дн.${spent > 0 ? ' · потрачено ' + spent.toLocaleString('ru-RU') + ' ₽' : ''}</div>
               <div class="item-status" style="color:${statusColor}">${statusText}</div>
+              ${promoInfo}
             </div>
             <button class="del-btn" data-del-acc="${acc.id}" data-del-id="${l.id}">✕</button>
           </div>
           ${editRow}
+          <div class="promo-btn-row">${promoBtn}</div>
+          ${promoEditRow}
         </div>
       `;
     }).join('') : `<div class="empty">Пока нет объявлений на этом аккаунте.<br>Нажмите «+ Добавить объявление» ниже.</div>`;
+
 
 
     const formHtml = `
@@ -520,6 +727,10 @@ window.addEventListener('error', function(e) {
         <div class="field">
           <label>Сколько дней осталось</label>
           <input type="number" name="remaining" value="${DEFAULT_DURATION}" min="0">
+        </div>
+        <div class="field">
+          <label>Потрачено на продвижение, ₽ (необязательно)</label>
+          <input type="number" name="spent" value="0" min="0">
         </div>
         <div class="err"></div>
         <div class="btn-row">
@@ -543,6 +754,8 @@ window.addEventListener('error', function(e) {
         <span class="pencil">✎ имя аккаунта</span>
       </div>
 
+      ${statsHtml}
+
       <div class="list-wrap">
         ${listingsHtml}
         ${formHtml}
@@ -563,14 +776,33 @@ window.addEventListener('error', function(e) {
     root.querySelectorAll('.gauge-btn').forEach(btn => {
       btn.addEventListener('click', () => toggleEdit(btn.dataset.editId));
     });
-    root.querySelectorAll('.edit-save').forEach(btn => {
+    root.querySelectorAll('.edit-save:not(.promo-save)').forEach(btn => {
       btn.addEventListener('click', () => {
         const input = root.querySelector('#edit-input-' + btn.dataset.saveId);
-        updateRemaining(btn.dataset.saveAcc, btn.dataset.saveId, input.value);
+        const spentInput = root.querySelector('#edit-spent-' + btn.dataset.saveId);
+        updateRemaining(btn.dataset.saveAcc, btn.dataset.saveId, input.value, spentInput.value);
       });
     });
-    root.querySelectorAll('.edit-cancel').forEach(btn => {
+    root.querySelectorAll('.edit-cancel:not(.promo-cancel):not(.promo-remove-btn)').forEach(btn => {
       btn.addEventListener('click', () => toggleEdit(btn.dataset.cancelId));
+    });
+    root.querySelectorAll('.promo-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => togglePromoEdit(btn.dataset.promoId));
+    });
+    root.querySelectorAll('.promo-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.promoSaveId;
+        const daysInput = root.querySelector('#promo-days-' + id);
+        const vStartInput = root.querySelector('#promo-vstart-' + id);
+        const vNowInput = root.querySelector('#promo-vnow-' + id);
+        savePromo(btn.dataset.promoSaveAcc, id, daysInput.value, vStartInput.value, vNowInput.value);
+      });
+    });
+    root.querySelectorAll('.promo-cancel').forEach(btn => {
+      btn.addEventListener('click', () => togglePromoEdit(btn.dataset.promoCancelId));
+    });
+    root.querySelectorAll('.promo-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => removePromo(btn.dataset.promoRemoveAcc, btn.dataset.promoRemoveId));
     });
     const nameInput = root.querySelector('#acc-name-input');
     nameInput.addEventListener('change', () => renameAccount(acc.id, nameInput.value.trim() || acc.name));

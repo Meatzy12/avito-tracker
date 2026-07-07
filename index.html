@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мои объявления Авито</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  html, body { margin: 0; padding: 0; background: #1c1f22; }
+  #app-root, #app-root * { box-sizing: border-box; }
+  #boot-error {
+    display: none;
+    font-family: sans-serif;
+    color: #e8e4dc;
+    background: #1c1f22;
+    padding: 30px 20px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  #app-root {
+    --bg: #1c1f22;
+    --panel: #24282c;
+    --panel-2: #2c3136;
+    --line: #383e44;
+    --text: #e8e4dc;
+    --muted: #9aa1a8;
+    --accent: #e8a33d;
+    --accent-dim: #6b5227;
+    --safe: #5fa777;
+    --warn: #d6a33d;
+    --danger: #d6524a;
+
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px 14px 60px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .head h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  .head .today {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .subhead { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0;
+  }
+  .tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 10px 6px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 5px;
+  }
+
+  .account-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .account-name-row input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--line);
+    color: var(--text);
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 4px 2px;
+    flex: 1;
+    outline: none;
+  }
+  .account-name-row input:focus { border-bottom-color: var(--accent); }
+  .account-name-row .pencil { color: var(--muted); font-size: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .card-wrap { margin-bottom: 10px; }
+
+  .gauge-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .gauge-btn:active { opacity: 0.7; }
+
+  .edit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--accent-dim);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 10px 14px;
+    margin-top: -1px;
+  }
+  .edit-row .edit-input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    min-width: 0;
+  }
+  .edit-row .edit-input:focus { border-color: var(--accent); }
+  .edit-row button {
+    border: none;
+    border-radius: 6px;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .edit-save { background: var(--accent); color: #241c0e; }
+  .edit-cancel { background: none; color: var(--muted); border: 1px solid var(--line) !important; }
+
+  .gauge { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
+  .gauge svg { transform: rotate(-90deg); }
+  .gauge .num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 3px;
+  }
+  .item-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .item-status {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 4px;
+  }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .del-btn:hover { color: var(--danger); }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 10px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .add-form {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 6px;
+  }
+  .add-form.hidden { display: none; }
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 9px 10px;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+  .btn {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-radius: 6px;
+    padding: 10px 14px;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+  }
+  .btn-primary { background: var(--accent); color: #241c0e; }
+  .btn-secondary { background: none; color: var(--muted); border: 1px solid var(--line); }
+
+  .fab {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(452px, calc(100% - 28px));
+  }
+  .fab-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #241c0e;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  .list-wrap { padding-bottom: 70px; }
+  .err { color: var(--danger); font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="boot-error">
+  <strong>Не удалось загрузить трекер.</strong><br>
+  <span id="boot-error-msg"></span><br><br>
+  Попробуйте открыть файл через кнопку «Открыть в браузере» / «Открыть в Chrome» (не через встроенный просмотрщик файлового менеджера).
+</div>
+<div id="app-root"></div>
+
+<script>
+window.addEventListener('error', function(e) {
+  var box = document.getElementById('boot-error');
+  var msg = document.getElementById('boot-error-msg');
+  if (box && msg) {
+    msg.textContent = e.message || 'Неизвестная ошибка';
+    box.style.display = 'block';
+  }
+});
+</script>
+
+<script>
+(function(){
+  const ACCOUNTS_KEY = 'avito-tracker-accounts';
+  const DEFAULT_DURATION = 30;
+
+  let state = {
+    accounts: [
+      { id: 'acc1', name: 'Аккаунт 1', listings: [] },
+      { id: 'acc2', name: 'Аккаунт 2', listings: [] }
+    ],
+    activeTab: 'acc1',
+    formOpen: false,
+    editingId: null
+  };
+
+  const root = document.getElementById('app-root');
+
+  function todayStr() {
+    const d = new Date();
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  }
+
+  function daysBetween(dateStr) {
+    const start = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor((nowMidnight - start) / 86400000);
+  }
+
+  function remainingDays(listing) {
+    const elapsed = daysBetween(listing.published);
+    return listing.duration - elapsed;
+  }
+
+  function gaugeColor(remaining, duration) {
+    const ratio = remaining / duration;
+    if (remaining <= 0) return 'var(--danger)';
+    if (ratio <= 0.2) return 'var(--danger)';
+    if (ratio <= 0.45) return 'var(--warn)';
+    return 'var(--safe)';
+  }
+
+  function gaugeSvg(remaining, duration) {
+    const ratio = Math.max(0, Math.min(1, remaining / duration));
+    const r = 22, circ = 2 * Math.PI * r;
+    const offset = circ * (1 - ratio);
+    const color = gaugeColor(remaining, duration);
+    return `<svg width="54" height="54" viewBox="0 0 54 54">
+      <circle cx="27" cy="27" r="${r}" fill="none" stroke="var(--line)" stroke-width="5"/>
+      <circle cx="27" cy="27" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+        stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(ACCOUNTS_KEY);
+      if (raw) {
+        state.accounts = JSON.parse(raw);
+      }
+    } catch (e) {
+      // no saved data yet — keep defaults
+    }
+    render();
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(state.accounts));
+    } catch (e) {
+      console.error('Save failed', e);
+    }
+  }
+
+  function getActiveAccount() {
+    return state.accounts.find(a => a.id === state.activeTab);
+  }
+
+  function switchTab(id) {
+    state.activeTab = id;
+    state.formOpen = false;
+    render();
+  }
+
+  function toggleForm() {
+    state.formOpen = !state.formOpen;
+    render();
+  }
+
+  async function renameAccount(id, newName) {
+    const acc = state.accounts.find(a => a.id === id);
+    if (acc) acc.name = newName;
+    await saveState();
+  }
+
+  async function addListing(e) {
+    e.preventDefault();
+    const form = e.target;
+    const title = form.title.value.trim();
+    const published = form.published.value;
+    const duration = parseInt(form.duration.value, 10) || DEFAULT_DURATION;
+    const errEl = form.querySelector('.err');
+
+    if (!title || !published) {
+      errEl.textContent = 'Заполните название и дату публикации';
+      return;
+    }
+
+    const acc = getActiveAccount();
+    acc.listings.push({
+      id: 'l' + Date.now(),
+      title, published, duration
+    });
+    state.formOpen = false;
+    await saveState();
+    render();
+  }
+
+  async function deleteListing(accId, listingId) {
+    const acc = state.accounts.find(a => a.id === accId);
+    acc.listings = acc.listings.filter(l => l.id !== listingId);
+    await saveState();
+    render();
+  }
+
+  function toggleEdit(listingId) {
+    state.editingId = state.editingId === listingId ? null : listingId;
+    render();
+  }
+
+  async function updateRemaining(accId, listingId, newValue) {
+    const acc = state.accounts.find(a => a.id === accId);
+    const listing = acc.listings.find(l => l.id === listingId);
+    const n = parseInt(newValue, 10);
+    if (isNaN(n) || n < 0) return;
+    // Пересчитываем срок так, чтобы с сегодняшнего дня оставалось ровно n дней,
+    // и дальше отсчёт продолжится сам как обычно.
+    const elapsed = daysBetween(listing.published);
+    listing.duration = elapsed + n;
+    state.editingId = null;
+    await saveState();
+    render();
+  }
+
+  function render() {
+    const acc = getActiveAccount();
+
+    const tabsHtml = state.accounts.map(a => `
+      <button class="tab ${a.id === state.activeTab ? 'active' : ''}" data-tab="${a.id}">
+        ${a.name}<span class="count">${a.listings.length}</span>
+      </button>
+    `).join('');
+
+    const sorted = [...acc.listings].sort((a, b) => remainingDays(a) - remainingDays(b));
+
+    const listingsHtml = sorted.length ? sorted.map(l => {
+      const rem = remainingDays(l);
+      const statusText = rem <= 0 ? 'Срок истёк' : (rem === 1 ? '1 день осталось' : `${rem} дней осталось`);
+      const statusColor = gaugeColor(rem, l.duration);
+      const isEditing = state.editingId === l.id;
+      const editRow = isEditing ? `
+          <div class="edit-row">
+            <input type="number" min="0" class="edit-input" id="edit-input-${l.id}" value="${rem > 0 ? rem : 0}">
+            <button class="edit-save" data-save-acc="${acc.id}" data-save-id="${l.id}">✓</button>
+            <button class="edit-cancel" data-cancel-id="${l.id}">✕</button>
+          </div>` : '';
+      return `
+        <div class="card-wrap">
+          <div class="card">
+            <button class="gauge gauge-btn" data-edit-id="${l.id}" title="Изменить количество дней">
+              ${gaugeSvg(rem, l.duration)}
+              <div class="num" style="color:${statusColor}">${rem > 0 ? rem : '0'}</div>
+            </button>
+            <div class="item-body">
+              <div class="item-title">${escapeHtml(l.title)}</div>
+              <div class="item-meta">опубл. ${formatDate(l.published)} · срок ${l.duration} дн.</div>
+              <div class="item-status" style="color:${statusColor}">${statusText}</div>
+            </div>
+            <button class="del-btn" data-del-acc="${acc.id}" data-del-id="${l.id}">✕</button>
+          </div>
+          ${editRow}
+        </div>
+      `;
+    }).join('') : `<div class="empty">Пока нет объявлений на этом аккаунте.<br>Нажмите «+ Добавить объявление» ниже.</div>`;
+
+
+    const formHtml = `
+      <form class="add-form ${state.formOpen ? '' : 'hidden'}" id="add-form">
+        <div class="field">
+          <label>Название объявления</label>
+          <input type="text" name="title" placeholder="Например: К9К 728 контрактный" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Дата публикации</label>
+            <input type="date" name="published" value="${new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="field">
+            <label>Срок (дней)</label>
+            <input type="number" name="duration" value="${DEFAULT_DURATION}" min="1">
+          </div>
+        </div>
+        <div class="err"></div>
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary" id="cancel-form">Отмена</button>
+        </div>
+      </form>
+    `;
+
+    root.innerHTML = `
+      <div class="head">
+        <h1>Мои объявления</h1>
+        <div class="today">${todayStr()}</div>
+      </div>
+      <div class="subhead">Дни считаются автоматически от сегодняшней даты</div>
+
+      <div class="tabs">${tabsHtml}</div>
+
+      <div class="account-name-row">
+        <input type="text" id="acc-name-input" value="${escapeHtml(acc.name)}">
+        <span class="pencil">✎ имя аккаунта</span>
+      </div>
+
+      <div class="list-wrap">
+        ${listingsHtml}
+        ${formHtml}
+      </div>
+
+      <div class="fab">
+        <button class="fab-btn" id="toggle-add-btn">${state.formOpen ? 'Скрыть форму' : '+ Добавить объявление'}</button>
+      </div>
+    `;
+
+    // wire events
+    root.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    root.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteListing(btn.dataset.delAcc, btn.dataset.delId));
+    });
+    root.querySelectorAll('.gauge-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleEdit(btn.dataset.editId));
+    });
+    root.querySelectorAll('.edit-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = root.querySelector('#edit-input-' + btn.dataset.saveId);
+        updateRemaining(btn.dataset.saveAcc, btn.dataset.saveId, input.value);
+      });
+    });
+    root.querySelectorAll('.edit-cancel').forEach(btn => {
+      btn.addEventListener('click', () => toggleEdit(btn.dataset.cancelId));
+    });
+    const nameInput = root.querySelector('#acc-name-input');
+    nameInput.addEventListener('change', () => renameAccount(acc.id, nameInput.value.trim() || acc.name));
+
+    const toggleBtn = root.querySelector('#toggle-add-btn');
+    toggleBtn.addEventListener('click', toggleForm);
+
+    const cancelBtn = root.querySelector('#cancel-form');
+    if (cancelBtn) cancelBtn.addEventListener('click', toggleForm);
+
+    const form = root.querySelector('#add-form');
+    if (form) form.addEventListener('submit', addListing);
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  loadState();
+})();
+</script>
+
+</body>
+</html>
